@@ -20,13 +20,40 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($stmt->rowCount() > 0) {
             $error = 'Email is already registered. Please login.';
         } else {
-            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
-            $insertStmt = $pdo->prepare("INSERT INTO Users (name, email, password_hash, role) VALUES (?, ?, ?, ?)");
+            $organizer_code = null;
+            $linked_organizer_id = null;
             
-            if ($insertStmt->execute([$name, $email, $hashed_password, $role])) {
-                $success = 'Registration successful! You can now <a href="login.php" style="color: var(--mocha); text-decoration: underline; font-weight: bold;">login here</a>.';
+            if ($role === 'user') {
+                $provided_code = trim($_POST['organizer_code'] ?? '');
+                if (empty($provided_code)) {
+                    $error = 'Please provide an Organizer Access Code to register as a user.';
+                } else {
+                    $codeStmt = $pdo->prepare("SELECT user_id FROM Users WHERE role = 'admin' AND organizer_code = ?");
+                    $codeStmt->execute([$provided_code]);
+                    $admin = $codeStmt->fetch();
+                    if ($admin) {
+                        $linked_organizer_id = $admin['user_id'];
+                    } else {
+                        $error = 'Invalid Organizer Access Code. Please check with your event organizer.';
+                    }
+                }
             } else {
-                $error = 'Something went wrong. Please try again.';
+                do {
+                    $organizer_code = 'ORG-' . strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+                    $checkQry = $pdo->prepare("SELECT user_id FROM Users WHERE organizer_code = ?");
+                    $checkQry->execute([$organizer_code]);
+                } while ($checkQry->fetch());
+            }
+
+            if (!$error) {
+                $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+                $insertStmt = $pdo->prepare("INSERT INTO Users (name, email, password_hash, role, organizer_code, linked_organizer_id) VALUES (?, ?, ?, ?, ?, ?)");
+                
+                if ($insertStmt->execute([$name, $email, $hashed_password, $role, $organizer_code, $linked_organizer_id])) {
+                    $success = 'Registration successful! You can now <a href="login.php" style="color: var(--mocha); text-decoration: underline; font-weight: bold;">login here</a>.';
+                } else {
+                    $error = 'Something went wrong. Please try again.';
+                }
             }
         }
     }
@@ -37,12 +64,12 @@ require_once 'includes/header.php';
     <h2 style="text-align: center; margin-bottom: 25px;">Join VeriTick</h2>
     <?php if ($error): ?> 
         <div class="alert alert-error">
-            <span style="font-size: 1.2rem; margin-right: 8px;">⚠️</span> <?= $error ?>
+            <span style="font-size: 1.2rem; margin-right: 8px;">⚠️</span> <span><?= $error ?></span>
         </div> 
     <?php endif; ?>
     <?php if ($success): ?> 
         <div class="alert alert-success">
-            <span style="font-size: 1.2rem; margin-right: 8px;">✨</span> <?= $success ?>
+            <span style="font-size: 1.2rem; margin-right: 8px;">✨</span> <span><?= $success ?></span>
         </div> 
     <?php else: ?>
         <form method="POST" action="register.php">
@@ -65,6 +92,11 @@ require_once 'includes/header.php';
                     <option value="admin">I want to organize events</option>
                 </select>
             </div>
+            <div class="form-group" id="organizer-code-group">
+                <label for="organizer_code">Organizer Access Code <span class="text-danger">*</span></label>
+                <input type="text" name="organizer_code" id="organizer_code" placeholder="e.g. ORG-XXXXXX">
+                <small class="text-muted">Ask your event organizer for their unique code to access their events.</small>
+            </div>
             <button type="submit" class="btn btn-secondary" style="margin-top: 15px;">Create Account</button>
         </form>
     <?php endif; ?>
@@ -72,5 +104,25 @@ require_once 'includes/header.php';
         Already have an account? <a href="login.php" class="text-success" style="text-decoration: none; font-weight: 700;">Log in</a>
     </p>
 </div>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const roleSelect = document.getElementById('role');
+        const orgCodeGroup = document.getElementById('organizer-code-group');
+        const orgCodeInput = document.getElementById('organizer_code');
+        
+        function toggleCodeField() {
+            if (roleSelect.value === 'user') {
+                orgCodeGroup.style.display = 'block';
+                orgCodeInput.required = true;
+            } else {
+                orgCodeGroup.style.display = 'none';
+                orgCodeInput.required = false;
+            }
+        }
+        
+        roleSelect.addEventListener('change', toggleCodeField);
+        toggleCodeField(); // init
+    });
+</script>
 </body>
 </html>

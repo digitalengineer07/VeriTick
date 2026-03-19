@@ -75,6 +75,15 @@ require_once 'includes/header.php';
             Event Sold Out
         </button>
     <?php endif; ?>
+    
+    <?php if (isset($_SESSION['user_id']) && isset($_SESSION['role']) && $_SESSION['role'] === 'admin' && $_SESSION['user_id'] == $event['organizer_id']): ?>
+        <form action="delete_event.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');" style="margin-top: 15px;">
+            <input type="hidden" name="event_id" value="<?= $event['event_id'] ?>">
+            <button type="submit" class="btn" style="padding: 18px; width: 100%; background: rgba(244, 63, 94, 0.1); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); font-weight: 800; text-transform: uppercase; cursor: pointer; font-size: 1.2rem;">
+                Delete Event
+            </button>
+        </form>
+    <?php endif; ?>
     </div>
 </div>
 </body>

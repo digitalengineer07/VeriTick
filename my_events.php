@@ -32,17 +32,27 @@ require_once 'includes/header.php';
                 <?php 
                     $sold_percent = ($event['total_seats'] > 0) ? round(($event['tickets_sold'] / $event['total_seats']) * 100) : 0;
                     $scanned_percent = ($event['tickets_sold'] > 0) ? round(($event['tickets_scanned'] / $event['tickets_sold']) * 100) : 0;
-                    $is_past = strtotime($event['date']) < time();
+                    
+                    $event_ts = strtotime($event['date']);
+                    $now = time();
+                    $is_past = ($event_ts + 86400) < $now; // Opacity dims only after it's Completed
+                    
+                    $status_html = '';
+                    if ($event_ts > $now + 86400) {
+                        $status_html = '<span class="badge" style="background: rgba(59, 130, 246, 0.2); color: #3b82f6; border: 1px solid rgba(59,130,246,0.3);">Upcoming</span>';
+                    } elseif ($event_ts > $now && $event_ts <= $now + 86400) {
+                        $status_html = '<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3);">Starting Soon</span>';
+                    } elseif ($event_ts <= $now && $now <= $event_ts + 86400) {
+                        $status_html = '<span class="badge" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16,185,129,0.3);">Ongoing</span>';
+                    } else {
+                        $status_html = '<span class="badge badge-neutral">Completed</span>';
+                    }
                 ?>
                 <div class="card" style="display: flex; flex-wrap: wrap; gap: 25px; align-items: center; <?= $is_past ? 'opacity: 0.6;' : '' ?>">
                     <div style="flex: 2; min-width: 250px;">
                         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
                             <h3 style="margin: 0; font-size: 1.6rem;"><?= htmlspecialchars($event['title']) ?></h3>
-                            <?php if ($is_past): ?>
-                                <span class="badge badge-neutral">Past</span>
-                            <?php else: ?>
-                                <span class="badge badge-success">Upcoming</span>
-                            <?php endif; ?>
+                            <?= $status_html ?>
                         </div>
                         <p style="margin-bottom: 5px; font-weight: 500; font-size: 0.95rem;"><span style="margin-right: 5px;">📅</span> <?= date('F j, Y, g:i a', strtotime($event['date'])) ?></p>
                         <p class="text-muted" style="font-weight: 500; font-size: 0.95rem;"><span style="margin-right: 5px;">📍</span> <?= htmlspecialchars($event['location']) ?></p>
@@ -73,6 +83,10 @@ require_once 'includes/header.php';
                         <?php if (!$is_past): ?>
                             <a href="checkin.php" class="btn btn-secondary" style="padding: 12px;">Scanner</a>
                         <?php endif; ?>
+                        <form action="delete_event.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this event? This action cannot be undone.');" style="margin: 0;">
+                            <input type="hidden" name="event_id" value="<?= $event['event_id'] ?>">
+                            <button type="submit" class="btn" style="padding: 12px; width: 100%; background: rgba(244, 63, 94, 0.1); color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.3); font-weight: 800; text-transform: uppercase; cursor: pointer;">Delete Event</button>
+                        </form>
                     </div>
                 </div>
             <?php endforeach; ?>

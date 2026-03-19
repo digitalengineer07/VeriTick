@@ -24,7 +24,14 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['user_id'] = $user['user_id'];
             $_SESSION['role'] = $user['role'];
             $_SESSION['name'] = $user['name'];
-            header("Location: index.php");
+            if (isset($user['linked_organizer_id'])) {
+                $_SESSION['linked_organizer_id'] = $user['linked_organizer_id'];
+            }
+            if ($user['role'] === 'admin') {
+                header("Location: dashboard.php");
+            } else {
+                header("Location: index.php");
+            }
             exit;
         } else {
             $error = 'Invalid email or password.';
@@ -37,7 +44,7 @@ require_once 'includes/header.php';
     <h2 style="text-align: center; margin-bottom: 25px;">Welcome Back</h2>
     <?php if ($error): ?> 
         <div class="alert alert-error">
-            <span style="font-size: 1.2rem; margin-right: 8px;">⚠️</span> <?= $error ?>
+            <span style="font-size: 1.2rem; margin-right: 8px;">⚠️</span> <span><?= $error ?></span>
         </div> 
     <?php endif; ?>
     <form method="POST" action="login.php">
